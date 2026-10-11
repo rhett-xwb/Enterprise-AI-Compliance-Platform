@@ -38,6 +38,14 @@ mybatis-plus:
   configuration:
     map-underscore-to-camel-case: true
 app:
+  jwt:
+    secret: ${JWT_SECRET:}
+    issuer: compliance-platform
+    ttl-seconds: ${JWT_TTL_SECONDS:900}
+  initial-admin:
+    enabled: ${INITIAL_ADMIN_ENABLED:false}
+    username: ${INITIAL_ADMIN_USERNAME:admin}
+    password: ${INITIAL_ADMIN_PASSWORD:}
   bootstrap:
     enabled: ${BOOTSTRAP_ENABLED:false}
     username: ${BOOTSTRAP_USERNAME:bootstrap-admin}

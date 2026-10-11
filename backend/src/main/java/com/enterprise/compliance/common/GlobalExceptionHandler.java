@@ -19,6 +19,11 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 public class GlobalExceptionHandler {
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
+    @ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)
+    ResponseEntity<ApiResponse<Void>> denied(Exception ex) {
+        return error(HttpStatus.FORBIDDEN, "Access denied");
+    }
+
     @ExceptionHandler(BusinessException.class)
     ResponseEntity<ApiResponse<Void>> business(BusinessException ex) {
         return error(ex.status(), ex.getMessage());

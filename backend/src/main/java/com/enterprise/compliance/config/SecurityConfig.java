@@ -8,6 +8,10 @@ import java.nio.charset.StandardCharsets;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.annotation.Order;
+import org.springframework.http.HttpMethod;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
+import com.enterprise.compliance.auth.AuthService;
 import org.springframework.http.MediaType;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -19,6 +23,7 @@ import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
 
 @Configuration
+@EnableMethodSecurity
 public class SecurityConfig {
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -47,9 +52,10 @@ public class SecurityConfig {
     }
 
     @Bean
+    @Order(1)
     SecurityFilterChain securityFilterChain(HttpSecurity http, ObjectMapper mapper,
             @Value("${app.bootstrap.enabled}") boolean enabled) throws Exception {
-        http.csrf(csrf -> csrf.disable())
+        http.securityMatcher("/api/bootstrap/**").csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .requestCache(cache -> cache.disable())
                 .authorizeHttpRequests(auth -> {
@@ -67,6 +73,30 @@ public class SecurityConfig {
             http.httpBasic(basic -> basic.authenticationEntryPoint(
                     (req, res, ex) -> write(mapper, res, 401, "Authentication required")));
         }
+        return http.build();
+    }
+
+    @Bean
+    @Order(2)
+    SecurityFilterChain jwtSecurityFilterChain(HttpSecurity http, ObjectMapper mapper, AuthService authService) throws Exception {
+        http.csrf(csrf -> csrf.disable())
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .requestCache(cache -> cache.disable())
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers(HttpMethod.GET, "/health").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
+                        .requestMatchers("/api/auth/me", "/api/auth/logout").authenticated()
+                        .requestMatchers("/api/users", "/api/users/**").hasAuthority("user:manage")
+                        .requestMatchers("/api/departments/**").authenticated()
+                        .requestMatchers("/api/approval-requests/**").hasAnyAuthority("approval:submit", "approval:review")
+                        .anyRequest().denyAll())
+                .exceptionHandling(errors -> errors
+                        .authenticationEntryPoint((req, res, ex) -> write(mapper, res, 401, "Authentication required"))
+                        .accessDeniedHandler((req, res, ex) -> write(mapper, res, 403, "Access denied")))
+                .oauth2ResourceServer(oauth -> oauth
+                        .jwt(jwt -> jwt.jwtAuthenticationConverter(authService))
+                        .authenticationEntryPoint((req, res, ex) -> write(mapper, res, 401, "Invalid or missing access token"))
+                        .accessDeniedHandler((req, res, ex) -> write(mapper, res, 403, "Access denied")));
         return http.build();
     }
 

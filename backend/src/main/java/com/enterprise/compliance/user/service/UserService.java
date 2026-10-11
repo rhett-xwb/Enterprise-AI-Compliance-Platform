@@ -62,6 +62,7 @@ public class UserService {
     @Transactional
     public UserResponse update(long id, UpdateUserRequest request) {
         find(id);
+        if (!request.enabled()) ensureAdminRemains(id);
         validateDepartment(request.departmentId());
         // Explicit null writes let callers clear optional fields; deleted rows cannot be revived.
         int count = mapper.update(null, new UpdateWrapper<UserEntity>()
@@ -70,17 +71,35 @@ public class UserService {
                 .set("department_id", request.departmentId()).set("enabled", request.enabled())
                 .set("updated_at", LocalDateTime.now()));
         if (count == 0) throw missing();
+        if (!request.enabled()) revokeSessions(id);
         return get(id);
     }
 
     @Transactional
     public void delete(long id) {
+        ensureAdminRemains(id);
         LocalDateTime now = LocalDateTime.now();
         int count = mapper.update(null, new UpdateWrapper<UserEntity>()
                 .eq("id", id).isNull("deleted_at").set("enabled", false)
                 .set("deleted_at", now).set("updated_at", now));
         if (count == 0) throw missing();
         jdbc.update("DELETE FROM sys_user_role WHERE user_id=?", id);
+        revokeSessions(id);
+    }
+
+    // Shared role-row lock serializes role changes, disable and delete of administrators.
+    public void ensureAdminRemains(long id) {
+        jdbc.queryForObject("SELECT id FROM sys_role WHERE code='ADMIN' FOR UPDATE", Long.class);
+        // Locking read observes the latest committed state even when an earlier read
+        // established a REPEATABLE READ snapshot before waiting for the role lock.
+        var admins = jdbc.queryForList("SELECT u.id FROM sys_user u JOIN sys_user_role ur ON u.id=ur.user_id JOIN sys_role r ON r.id=ur.role_id WHERE r.code='ADMIN' AND u.enabled=true AND u.deleted_at IS NULL FOR UPDATE", Long.class);
+        if (admins.contains(id) && admins.size() <= 1) {
+            throw new BusinessException(HttpStatus.CONFLICT, "Cannot remove the last active administrator");
+        }
+    }
+
+    private void revokeSessions(long id) {
+        jdbc.update("UPDATE auth_session SET revoked_at=CURRENT_TIMESTAMP(6) WHERE user_id=? AND revoked_at IS NULL", id);
     }
 
     private UserEntity find(long id) {

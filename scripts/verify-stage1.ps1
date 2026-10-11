@@ -1,5 +1,6 @@
 param(
-    [string]$MySqlBin = (Split-Path (Get-Command mysqld.exe -ErrorAction Stop).Source)
+    [string]$MySqlBin = (Split-Path (Get-Command mysqld.exe -ErrorAction Stop).Source),
+    [switch]$Stage2
 )
 
 $ErrorActionPreference = 'Stop'
@@ -12,7 +13,7 @@ $mysqlClient = Join-Path $MySqlBin 'mysql.exe'
 $mysqlAdmin = Join-Path $MySqlBin 'mysqladmin.exe'
 $mysqlProcess = $null
 $appProcess = $null
-$changedNames = @('TEST_DB_URL','TEST_DB_USERNAME','TEST_DB_PASSWORD','DB_URL','DB_USERNAME','DB_PASSWORD','BOOTSTRAP_ENABLED','BOOTSTRAP_USERNAME','BOOTSTRAP_PASSWORD','SERVER_ADDRESS','SERVER_PORT','LOG_FILE','MYSQL_PWD')
+$changedNames = @('TEST_DB_URL','TEST_DB_USERNAME','TEST_DB_PASSWORD','DB_URL','DB_USERNAME','DB_PASSWORD','BOOTSTRAP_ENABLED','BOOTSTRAP_USERNAME','BOOTSTRAP_PASSWORD','SERVER_ADDRESS','SERVER_PORT','LOG_FILE','MYSQL_PWD','JWT_SECRET','INITIAL_ADMIN_ENABLED','INITIAL_ADMIN_USERNAME','INITIAL_ADMIN_PASSWORD')
 $savedEnvironment = @{}
 foreach ($name in $changedNames) { $savedEnvironment[$name] = [Environment]::GetEnvironmentVariable($name, 'Process') }
 
@@ -67,6 +68,8 @@ try {
     $env:DB_URL = $env:TEST_DB_URL
     $env:DB_USERNAME = $env:TEST_DB_USERNAME
     $env:DB_PASSWORD = $env:TEST_DB_PASSWORD
+    $env:JWT_SECRET = [Convert]::ToBase64String([Security.Cryptography.RandomNumberGenerator]::GetBytes(32))
+    $env:INITIAL_ADMIN_ENABLED = 'false'
     $env:SERVER_ADDRESS = '127.0.0.1'
     $env:SERVER_PORT = [string](Get-FreeLocalPort)
     $env:LOG_FILE = Join-Path $runPath 'application.log'
@@ -106,6 +109,7 @@ try {
     if ($deleted.code -ne 0) { throw 'Delete HTTP acceptance failed' }
     $passwordLeak = Get-ChildItem $runPath -Filter '*.log' | Select-String -SimpleMatch -Pattern $userPassword,$env:BOOTSTRAP_PASSWORD,$testPassword
     if ($passwordLeak) { throw 'Unexpected credentials in application logs' }
+    if ($Stage2) { . (Join-Path $PSScriptRoot 'stage2-http-check.ps1') }
     Write-Output 'STAGE1_VERIFIED: fresh MySQL migrations, integration tests, packaged startup, default deny, HTTP CRUD, credential log check'
     Write-Output "Verification evidence: $runPath"
 } finally {

@@ -14,5 +14,7 @@ public abstract class MySqlTestSupport {
         registry.add("spring.datasource.username", () -> System.getenv("TEST_DB_USERNAME"));
         registry.add("spring.datasource.password", () -> System.getenv("TEST_DB_PASSWORD"));
         registry.add("logging.file.name", () -> "target/test-logs/application.log");
+        registry.add("app.jwt.secret", () -> java.util.Base64.getEncoder().encodeToString("stage2-test-key-not-for-deployment".getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+        registry.add("app.initial-admin.enabled", () -> false);
     }
 }
