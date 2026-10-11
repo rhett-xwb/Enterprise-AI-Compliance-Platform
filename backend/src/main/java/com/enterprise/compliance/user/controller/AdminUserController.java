@@ -1,7 +1,6 @@
 package com.enterprise.compliance.user.controller;
 
 import com.enterprise.compliance.common.ApiResponse;
-import com.enterprise.compliance.common.BusinessException;
 import com.enterprise.compliance.user.dto.*;
 import com.enterprise.compliance.user.service.UserService;
 import jakarta.validation.Valid;

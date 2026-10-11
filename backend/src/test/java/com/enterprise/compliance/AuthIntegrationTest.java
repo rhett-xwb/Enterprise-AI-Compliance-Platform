@@ -13,11 +13,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.lang.NonNull;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
 import org.springframework.security.oauth2.jwt.*;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
-import static org.junit.jupiter.api.Assertions.*;
+import static java.util.Objects.requireNonNull;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -35,6 +36,10 @@ class AuthIntegrationTest extends MySqlTestSupport {
     @Autowired ObjectMapper json;
     private static final String PASSWORD="account-test-password-only";
 
+    private @NonNull String writeJson(Object payload) throws Exception {
+        return requireNonNull(json.writeValueAsString(payload));
+    }
+
     private long account(String username,String role,Long department) {
         long id=users.create(new CreateUserRequest(username,PASSWORD,username,null,department)).id();
         jdbc.update("DELETE FROM sys_user_role WHERE user_id=?",id);
@@ -44,7 +49,7 @@ class AuthIntegrationTest extends MySqlTestSupport {
 
     private String login(String username) throws Exception {
         String response=mvc.perform(post("/api/auth/login").contentType("application/json")
-                .content(json.writeValueAsString(java.util.Map.of("username",username,"password",PASSWORD))))
+                .content(writeJson(java.util.Map.of("username",username,"password",PASSWORD))))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.data.tokenType").value("Bearer"))
                 .andExpect(jsonPath("$.data.expiresIn").value(900))
                 .andReturn().getResponse().getContentAsString();
@@ -91,7 +96,7 @@ class AuthIntegrationTest extends MySqlTestSupport {
         jdbc.update("INSERT INTO sys_role_permission(role_id,permission_id) SELECT r.id,p.id FROM sys_role r,sys_permission p WHERE r.code='LEGAL' AND p.code='user:manage'");
         mvc.perform(get("/api/users").header("Authorization","Bearer "+legal))
                 .andExpect(status().isForbidden()).andExpect(jsonPath("$.code").value(403));
-        long adminId=jdbc.queryForObject("SELECT id FROM sys_user WHERE username='administrator'",Long.class);
+        long adminId=requireNonNull(jdbc.queryForObject("SELECT id FROM sys_user WHERE username='administrator'",Long.class));
         mvc.perform(put("/api/users/{id}/roles",adminId).header("Authorization","Bearer "+admin)
                 .contentType("application/json").content("{\"roles\":[\"EMPLOYEE\"]}"))
                 .andExpect(status().isConflict());
@@ -99,7 +104,7 @@ class AuthIntegrationTest extends MySqlTestSupport {
                 .andExpect(status().isConflict());
         mvc.perform(put("/api/users/{id}",adminId).header("Authorization","Bearer "+admin)
                 .contentType("application/json")
-                .content(json.writeValueAsString(new UpdateUserRequest("administrator",null,null,false))))
+                .content(writeJson(new UpdateUserRequest("administrator",null,null,false))))
                 .andExpect(status().isConflict());
         mvc.perform(get("/api/auth/me").header("Authorization","Bearer "+admin))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.data.roles[0]").value("ADMIN"));
@@ -112,7 +117,7 @@ class AuthIntegrationTest extends MySqlTestSupport {
         users.update(id,new UpdateUserRequest("employee",null,null,false));
         mvc.perform(get("/api/auth/me").header("Authorization","Bearer "+token)).andExpect(status().isUnauthorized());
         mvc.perform(post("/api/auth/login").contentType("application/json")
-                .content(json.writeValueAsString(java.util.Map.of("username","employee","password",PASSWORD))))
+                .content(writeJson(java.util.Map.of("username","employee","password",PASSWORD))))
                 .andExpect(status().isUnauthorized());
         users.update(id,new UpdateUserRequest("employee",null,null,true));
         mvc.perform(get("/api/auth/me").header("Authorization","Bearer "+token)).andExpect(status().isUnauthorized());
@@ -120,7 +125,7 @@ class AuthIntegrationTest extends MySqlTestSupport {
         users.delete(id);
         mvc.perform(get("/api/auth/me").header("Authorization","Bearer "+newToken)).andExpect(status().isUnauthorized());
         mvc.perform(post("/api/auth/login").contentType("application/json")
-                .content(json.writeValueAsString(java.util.Map.of("username","employee","password",PASSWORD))))
+                .content(writeJson(java.util.Map.of("username","employee","password",PASSWORD))))
                 .andExpect(status().isUnauthorized());
     }
 

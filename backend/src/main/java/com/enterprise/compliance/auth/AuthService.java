@@ -14,6 +14,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -71,7 +72,7 @@ public class AuthService implements Converter<Jwt, AbstractAuthenticationToken> 
     }
 
     @Override
-    public AbstractAuthenticationToken convert(Jwt token) {
+    public AbstractAuthenticationToken convert(@NonNull Jwt token) {
         long id;
         try { id = Long.parseLong(token.getSubject()); }
         catch (NumberFormatException ex) { throw invalid(); }

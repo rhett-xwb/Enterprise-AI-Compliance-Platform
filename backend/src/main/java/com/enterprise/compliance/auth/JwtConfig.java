@@ -36,10 +36,12 @@ public class JwtConfig {
         var timestamp = new JwtTimestampValidator(Duration.ZERO);
         timestamp.setClock(clock);
         OAuth2TokenValidator<Jwt> required = jwt -> {
-            boolean valid = jwt.getExpiresAt() != null && jwt.getIssuedAt() != null
+            var expiresAt = jwt.getExpiresAt();
+            var issuedAt = jwt.getIssuedAt();
+            boolean valid = expiresAt != null && issuedAt != null
                     && jwt.getSubject() != null && jwt.getId() != null
-                    && jwt.getIssuedAt().isBefore(jwt.getExpiresAt())
-                    && !jwt.getIssuedAt().isAfter(clock.instant());
+                    && issuedAt.isBefore(expiresAt)
+                    && !issuedAt.isAfter(clock.instant());
             return valid ? OAuth2TokenValidatorResult.success() : OAuth2TokenValidatorResult.failure(
                     new OAuth2Error("invalid_token", "Invalid token claims", null));
         };

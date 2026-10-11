@@ -9,10 +9,13 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.lang.NonNull;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import org.springframework.transaction.annotation.Transactional;
 import static org.junit.jupiter.api.Assertions.*;
+import static java.util.Objects.requireNonNull;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -33,8 +36,8 @@ class UserCrudIntegrationTest extends MySqlTestSupport {
             {"username":"test_employee","password":"user-test-password-only","displayName":"测试员工","email":"employee@example.test"}
             """;
 
-    private org.springframework.test.web.servlet.request.RequestPostProcessor admin() {
-        return httpBasic("test-bootstrap", "test-bootstrap-password-only");
+    private @NonNull RequestPostProcessor admin() {
+        return requireNonNull(httpBasic("test-bootstrap", "test-bootstrap-password-only"));
     }
 
     private long createUser() throws Exception {
@@ -78,7 +81,7 @@ class UserCrudIntegrationTest extends MySqlTestSupport {
     void unauthorizedAndInvalidCredentialsCannotReadOrWrite() throws Exception {
         mvc.perform(get("/api/bootstrap/users")).andExpect(status().isUnauthorized()).andExpect(jsonPath("$.code").value(401));
         mvc.perform(post("/api/bootstrap/users").contentType("application/json").content(BODY)).andExpect(status().isUnauthorized());
-        mvc.perform(get("/api/bootstrap/users").with(httpBasic("test-bootstrap", "wrong"))).andExpect(status().isUnauthorized());
+        mvc.perform(get("/api/bootstrap/users").with(requireNonNull(httpBasic("test-bootstrap", "wrong")))).andExpect(status().isUnauthorized());
         assertEquals(0, jdbc.queryForObject("SELECT COUNT(*) FROM sys_user", Integer.class));
     }
 
@@ -87,10 +90,10 @@ class UserCrudIntegrationTest extends MySqlTestSupport {
         createUser();
         mvc.perform(post("/api/bootstrap/users").with(admin()).contentType("application/json").content(BODY))
                 .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value(409))
-                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("password_hash"))));
-        mvc.perform(post("/api/bootstrap/users").with(admin()).contentType("application/json").content(BODY.replace(PASSWORD, "short")))
+                .andExpect(content().string(requireNonNull(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("password_hash")))));
+        mvc.perform(post("/api/bootstrap/users").with(admin()).contentType("application/json").content(requireNonNull(BODY.replace(PASSWORD, "short"))))
                 .andExpect(status().isBadRequest());
-        mvc.perform(post("/api/bootstrap/users").with(admin()).contentType("application/json").content(BODY.replace("user-test-password-only", "密".repeat(30))))
+        mvc.perform(post("/api/bootstrap/users").with(admin()).contentType("application/json").content(requireNonNull(BODY.replace("user-test-password-only", "密".repeat(30)))))
                 .andExpect(status().isBadRequest());
         mvc.perform(post("/api/bootstrap/users").with(admin()).contentType("application/json").content("{invalid-json"))
                 .andExpect(status().isBadRequest());
@@ -99,11 +102,11 @@ class UserCrudIntegrationTest extends MySqlTestSupport {
         mvc.perform(get("/api/bootstrap/users/999999").with(admin())).andExpect(status().isNotFound());
         JsonNode payload = json.readTree(BODY);
         ((com.fasterxml.jackson.databind.node.ObjectNode) payload).put("role", "ADMIN");
-        mvc.perform(post("/api/bootstrap/users").with(admin()).contentType("application/json").content(payload.toString()))
+        mvc.perform(post("/api/bootstrap/users").with(admin()).contentType("application/json").content(requireNonNull(payload.toString())))
                 .andExpect(status().isBadRequest());
         ((com.fasterxml.jackson.databind.node.ObjectNode) payload).remove("role");
         ((com.fasterxml.jackson.databind.node.ObjectNode) payload).put("departmentId", 999999);
-        mvc.perform(post("/api/bootstrap/users").with(admin()).contentType("application/json").content(payload.toString()))
+        mvc.perform(post("/api/bootstrap/users").with(admin()).contentType("application/json").content(requireNonNull(payload.toString())))
                 .andExpect(status().isBadRequest());
     }
 
@@ -119,7 +122,8 @@ class UserCrudIntegrationTest extends MySqlTestSupport {
                 () -> jdbc.update("UPDATE document SET current_version_id=901 WHERE id=902"));
         var checkFailure = assertThrows(org.springframework.jdbc.UncategorizedSQLException.class,
                 () -> jdbc.update("INSERT INTO ai_citation(chunk_id,quoted_text) VALUES(999,'invalid')"));
-        assertEquals(3819, checkFailure.getSQLException().getErrorCode());
-        assertTrue(checkFailure.getSQLException().getMessage().contains("ck_citation_owner"));
+        var sqlException = requireNonNull(checkFailure.getSQLException());
+        assertEquals(3819, sqlException.getErrorCode());
+        assertTrue(requireNonNull(sqlException.getMessage()).contains("ck_citation_owner"));
     }
 }
