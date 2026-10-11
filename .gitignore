@@ -1,0 +1,8 @@
+.cache/
+backend/target/
+backend/logs/
+.env
+.env.*
+!.env.example
+*.local.yml
+*.local.yaml

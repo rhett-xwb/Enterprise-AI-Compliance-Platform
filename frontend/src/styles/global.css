@@ -1,0 +1,52 @@
+:root {
+  font-family: 'Microsoft YaHei', 'PingFang SC', system-ui, sans-serif;
+  color: #303133;
+  background: #f5f7fa;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; }
+.app-layout { min-height: 100vh; }
+
+.app-header {
+  height: auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  background: #fff;
+  border-bottom: 1px solid #e4e7ed;
+}
+
+.app-title { font-size: 18px; font-weight: 600; }
+.app-header .el-menu { border-bottom: none; }
+.app-main {
+  width: 100%;
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 32px 20px;
+}
+
+h1 { margin: 0; font-size: 22px; }
+p { line-height: 1.8; }
+.page-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 24px;
+}
+.page-actions .el-button + .el-button { margin-left: 0; }
+.page-notice { margin-top: 20px; }
+
+@media (max-width: 640px) {
+  .app-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0;
+    padding-top: 16px;
+  }
+  .app-main { padding: 20px 12px; }
+}
