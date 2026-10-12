@@ -41,6 +41,17 @@ public class GlobalExceptionHandler {
         return error(HttpStatus.CONFLICT, "Resource conflicts with existing data");
     }
 
+    @ExceptionHandler(org.springframework.web.multipart.MaxUploadSizeExceededException.class)
+    ResponseEntity<ApiResponse<Void>> uploadSize(Exception ex) {
+        return error(HttpStatus.PAYLOAD_TOO_LARGE, "文件不能超过 10 MiB，请求不能超过 11 MiB");
+    }
+
+    @ExceptionHandler({org.springframework.web.multipart.support.MissingServletRequestPartException.class,
+            org.springframework.web.bind.MissingServletRequestParameterException.class})
+    ResponseEntity<ApiResponse<Void>> missingParameter(Exception ex) {
+        return error(HttpStatus.BAD_REQUEST, "缺少文件或必要参数");
+    }
+
     @ExceptionHandler(NoResourceFoundException.class)
     ResponseEntity<ApiResponse<Void>> missing(NoResourceFoundException ex) {
         return error(HttpStatus.NOT_FOUND, "Resource not found");

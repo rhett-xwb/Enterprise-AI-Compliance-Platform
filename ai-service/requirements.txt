@@ -1,0 +1,9 @@
+fastapi==0.143.0
+uvicorn==0.54.0
+pymupdf==1.28.2
+pillow==12.3.0
+defusedxml==0.7.1
+paddleocr==3.7.0
+paddlepaddle==3.3.1
+qdrant-client[fastembed]==1.19.1
+fastembed==0.8.1

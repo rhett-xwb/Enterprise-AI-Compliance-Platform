@@ -112,7 +112,7 @@ class UserCrudIntegrationTest extends MySqlTestSupport {
 
     @Test
     void migrationsSeedMetadataAndRejectCrossDocumentVersionPointers() throws Exception {
-        assertEquals(3, jdbc.queryForObject("SELECT COUNT(*) FROM flyway_schema_history WHERE success=1", Integer.class));
+        assertEquals(10, jdbc.queryForObject("SELECT COUNT(*) FROM flyway_schema_history WHERE success=1", Integer.class));
         assertEquals(3, jdbc.queryForObject("SELECT COUNT(*) FROM sys_role", Integer.class));
         assertEquals(6, jdbc.queryForObject("SELECT COUNT(*) FROM sys_permission", Integer.class));
         long owner = createUser();

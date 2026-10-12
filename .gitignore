@@ -1,6 +1,13 @@
 .cache/
+__pycache__/
+.pytest_cache/
+ai-service/.venv/
 backend/target/
 backend/logs/
+backend/data/
+data/documents/
+data/vectors/
+ai-service/data/vectors/
 .env
 .env.*
 !.env.example

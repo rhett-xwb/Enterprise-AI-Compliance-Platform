@@ -5,6 +5,31 @@ server:
     include-message: never
     include-stacktrace: never
 spring:
+  rabbitmq:
+    host: ${RABBITMQ_HOST:127.0.0.1}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:compliance}
+    password: ${RABBITMQ_PASSWORD:}
+    virtual-host: ${RABBITMQ_VHOST:/}
+    publisher-confirm-type: correlated
+    publisher-returns: true
+    connection-timeout: 3s
+    listener:
+      simple:
+        prefetch: 1
+        acknowledge-mode: auto
+        default-requeue-rejected: false
+  data:
+    redis:
+      host: ${REDIS_HOST:127.0.0.1}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 500ms
+      connect-timeout: 500ms
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 11MB
   application:
     name: compliance-platform
   datasource:
@@ -38,6 +63,32 @@ mybatis-plus:
   configuration:
     map-underscore-to-camel-case: true
 app:
+  async:
+    enabled: ${ASYNC_TASKS_ENABLED:false}
+    poll-ms: ${ASYNC_TASK_POLL_MS:1000}
+  cache:
+    enabled: ${SOURCE_CACHE_ENABLED:false}
+    namespace: ${CACHE_NAMESPACE:compliance}
+  travel:
+    maximum-amount: ${TRAVEL_MAXIMUM_AMOUNT:0}
+  qa:
+    enabled: ${QA_ENABLED:false}
+    url: ${QA_COMPLETIONS_URL:}
+    api-key: ${QA_API_KEY:}
+    model: ${QA_MODEL:}
+    timeout-seconds: ${QA_TIMEOUT_SECONDS:60}
+  retrieval:
+    enabled: ${RETRIEVAL_ENABLED:false}
+    url: ${RETRIEVAL_URL:http://127.0.0.1:8091}
+    secret: ${RETRIEVAL_SECRET:}
+  parser:
+    enabled: ${PARSER_ENABLED:false}
+    url: ${PARSER_URL:http://127.0.0.1:8090}
+    secret: ${PARSER_SECRET:}
+    timeout-seconds: ${PARSER_CLIENT_TIMEOUT_SECONDS:190}
+    poll-ms: ${PARSER_POLL_MS:1000}
+  documents:
+    storage-root: ${DOCUMENT_STORAGE_ROOT:data/documents}
   jwt:
     secret: ${JWT_SECRET:}
     issuer: compliance-platform

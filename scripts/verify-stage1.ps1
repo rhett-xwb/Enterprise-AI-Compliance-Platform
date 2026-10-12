@@ -1,6 +1,14 @@
 param(
     [string]$MySqlBin = (Split-Path (Get-Command mysqld.exe -ErrorAction Stop).Source),
-    [switch]$Stage2
+    [switch]$Stage2,
+    [switch]$Stage3,
+    [switch]$Stage4,
+    [switch]$Stage5,
+    [switch]$Stage6,
+    [switch]$Stage7,
+    [switch]$Stage8,
+    [switch]$Stage9,
+    [switch]$Stage10
 )
 
 $ErrorActionPreference = 'Stop'
@@ -13,8 +21,21 @@ $mysqlClient = Join-Path $MySqlBin 'mysql.exe'
 $mysqlAdmin = Join-Path $MySqlBin 'mysqladmin.exe'
 $mysqlProcess = $null
 $appProcess = $null
+$parserProcess = $null
+$retrievalProcess = $null
+$questionModelProcess = $null
+if ($Stage8) { $Stage7 = $true }
+if ($Stage10) { $Stage9 = $true }
+if ($Stage9) { $Stage3 = $true; $Stage2 = $true }
+if ($Stage7) { $Stage6 = $true }
+if ($Stage6) { $Stage5 = $true }
 $changedNames = @('TEST_DB_URL','TEST_DB_USERNAME','TEST_DB_PASSWORD','DB_URL','DB_USERNAME','DB_PASSWORD','BOOTSTRAP_ENABLED','BOOTSTRAP_USERNAME','BOOTSTRAP_PASSWORD','SERVER_ADDRESS','SERVER_PORT','LOG_FILE','MYSQL_PWD','JWT_SECRET','INITIAL_ADMIN_ENABLED','INITIAL_ADMIN_USERNAME','INITIAL_ADMIN_PASSWORD')
 $savedEnvironment = @{}
+$changedNames += 'DOCUMENT_STORAGE_ROOT'
+$changedNames += @('ASYNC_TASKS_ENABLED','SOURCE_CACHE_ENABLED')
+$changedNames += @('QA_ENABLED','QA_COMPLETIONS_URL','QA_API_KEY','QA_MODEL','QA_TIMEOUT_SECONDS','QA_TEST_PORT')
+$changedNames += @('RETRIEVAL_ENABLED','RETRIEVAL_URL','RETRIEVAL_SECRET','VECTOR_STORAGE_ROOT','EMBEDDING_CACHE','E2E_STAGE6','HF_HUB_OFFLINE')
+$changedNames += @('PARSER_ENABLED','PARSER_URL','PARSER_SECRET','PARSER_TIMEOUT_SECONDS','PARSER_CLIENT_TIMEOUT_SECONDS','PADDLE_PDX_CACHE_HOME','PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK','E2E_STAGE5','E2E_STAGE5_SAMPLES','PYTHONUTF8')
 foreach ($name in $changedNames) { $savedEnvironment[$name] = [Environment]::GetEnvironmentVariable($name, 'Process') }
 
 function Get-FreeLocalPort {
@@ -58,11 +79,20 @@ try {
     $env:TEST_DB_URL = "jdbc:mysql://127.0.0.1:$mysqlPort/compliance_platform_test?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true"
     $env:TEST_DB_USERNAME = 'stage1_test'
     $env:TEST_DB_PASSWORD = $testPassword
+    $env:DOCUMENT_STORAGE_ROOT = Join-Path $runPath 'document-files'
+    $env:PARSER_ENABLED = 'false'
+    $env:ASYNC_TASKS_ENABLED = 'false'
+    $env:SOURCE_CACHE_ENABLED = 'false'
+    $env:RETRIEVAL_ENABLED = 'false'
+    $env:QA_ENABLED = 'false'
     Push-Location (Join-Path $workspacePath 'backend')
     try {
         & mvn "-Dmaven.repo.local=$workspacePath\.cache\maven" -B -ntp verify
         if ($LASTEXITCODE -ne 0) { throw 'Maven verification failed' }
     } finally { Pop-Location }
+    if ($Stage5) { . (Join-Path $PSScriptRoot 'stage5-parser-start.ps1') }
+    if ($Stage6) { . (Join-Path $PSScriptRoot 'stage6-retrieval-start.ps1') }
+    if ($Stage7) { . (Join-Path $PSScriptRoot 'stage7-model-start.ps1') }
 
     # Exercise the packaged application over real HTTP, first with CRUD disabled.
     $env:DB_URL = $env:TEST_DB_URL
@@ -109,10 +139,15 @@ try {
     if ($deleted.code -ne 0) { throw 'Delete HTTP acceptance failed' }
     $passwordLeak = Get-ChildItem $runPath -Filter '*.log' | Select-String -SimpleMatch -Pattern $userPassword,$env:BOOTSTRAP_PASSWORD,$testPassword
     if ($passwordLeak) { throw 'Unexpected credentials in application logs' }
-    if ($Stage2) { . (Join-Path $PSScriptRoot 'stage2-http-check.ps1') }
+    if ($Stage2 -or $Stage3 -or $Stage4 -or $Stage5) { . (Join-Path $PSScriptRoot 'stage2-http-check.ps1') }
+    if ($Stage5) { $Stage4 = $true }
+    if ($Stage3 -or $Stage4 -or $Stage5) { . (Join-Path $PSScriptRoot 'stage3-browser-check.ps1') }
     Write-Output 'STAGE1_VERIFIED: fresh MySQL migrations, integration tests, packaged startup, default deny, HTTP CRUD, credential log check'
     Write-Output "Verification evidence: $runPath"
 } finally {
+    if ($questionModelProcess -and -not $questionModelProcess.HasExited) { Stop-Process -Id $questionModelProcess.Id }
+    if ($retrievalProcess -and -not $retrievalProcess.HasExited) { Stop-Process -Id $retrievalProcess.Id }
+    if ($parserProcess -and -not $parserProcess.HasExited) { Stop-Process -Id $parserProcess.Id }
     if ($appProcess -and -not $appProcess.HasExited) { Stop-Process -Id $appProcess.Id }
     if ($mysqlProcess -and -not $mysqlProcess.HasExited) {
         $env:MYSQL_PWD = $null
