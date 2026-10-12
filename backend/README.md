@@ -28,15 +28,30 @@ GRANT ALL PRIVILEGES ON compliance_platform.* TO 'compliance_app'@'localhost';
 Spring Boot 不会自动读取根目录 `.env`。`.env.example` 是配置说明及 Docker 示例；启动 Java 时通过进程环境变量或 IDE 运行配置注入参数。
 
 ```powershell
-# PowerShell 7，在项目根目录执行。
+# Windows PowerShell 5.1 / PowerShell 7，在项目根目录执行。
+function Read-LocalPassword([string]$Prompt) {
+    $secure = Read-Host $Prompt -AsSecureString
+    return ([System.Net.NetworkCredential]::new('', $secure)).Password
+}
 $env:DB_USERNAME = 'compliance_app'
-$env:DB_PASSWORD = Read-Host '本地数据库密码' -MaskInput
-$env:JWT_SECRET = [Convert]::ToBase64String([Security.Cryptography.RandomNumberGenerator]::GetBytes(32))
+$env:DB_PASSWORD = Read-LocalPassword '本地数据库密码'
+$jwtBytes = New-Object byte[] 32
+$jwtRandom = [Security.Cryptography.RandomNumberGenerator]::Create()
+try {
+    $jwtRandom.GetBytes($jwtBytes)
+    $env:JWT_SECRET = [Convert]::ToBase64String($jwtBytes)
+} finally {
+    $jwtRandom.Dispose()
+    [Array]::Clear($jwtBytes, 0, $jwtBytes.Length)
+}
 # 保存此密钥到本地私有运行配置；每次换密钥会使旧令牌失效，不要提交到仓库。
 # 仅首次在无用户的数据库启动时开启：
 $env:INITIAL_ADMIN_ENABLED = 'true'
 $env:INITIAL_ADMIN_USERNAME = 'admin'
-$env:INITIAL_ADMIN_PASSWORD = Read-Host '初始管理员密码 至少12字符' -MaskInput
+$env:INITIAL_ADMIN_PASSWORD = Read-LocalPassword '初始管理员密码 至少12字符'
+if ($env:INITIAL_ADMIN_PASSWORD.Length -lt 12 -or [Text.Encoding]::UTF8.GetByteCount($env:INITIAL_ADMIN_PASSWORD) -gt 72) {
+    throw '初始管理员密码须至少12字符，且不超过72个UTF-8字节；请重新设置后再启动。'
+}
 # 下列连接仅用于本地无 TLS 的开发数据库。
 $env:DB_URL = 'jdbc:mysql://127.0.0.1:3306/compliance_platform?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true'
 cd backend
@@ -64,10 +79,12 @@ mvn spring-boot:run
 ```powershell
 $env:BOOTSTRAP_ENABLED = 'true'
 $env:BOOTSTRAP_USERNAME = 'bootstrap-admin'
-$env:BOOTSTRAP_PASSWORD = Read-Host '临时管理员密码 至少12字符' -MaskInput
+$env:BOOTSTRAP_PASSWORD = Read-LocalPassword '临时管理员密码 至少12字符'
 ```
 
 开启后，只允许临时内存管理员通过 HTTP Basic 调用 `/api/bootstrap/users`。管理员密码要求至少 12 字符且不超过 72 UTF-8 字节，应用只接受 `127.0.0.1` 或 `::1` 监听。普通数据库用户不能通过此认证登录。验证结束将开关设为 `false` 并重启；不要将此临时模式暴露到公网或用于正式业务。
+
+上述临时模式示例需要先执行启动配置中的 `Read-LocalPassword` 函数定义。
 
 此模式仅保留阶段 1 回归验收。正式接口使用请求头 Bearer 认证，不从 Cookie 自动获取凭据；如后续改为 Cookie 认证，需要同步增加 CSRF 防护。
 
