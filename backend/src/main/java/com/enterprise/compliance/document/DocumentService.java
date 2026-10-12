@@ -124,7 +124,7 @@ public class DocumentService {
     }
     private long insert(String sql,Object...args) {
         var key=new GeneratedKeyHolder();
-        jdbc.update(connection->{var statement=connection.prepareStatement(sql,Statement.RETURN_GENERATED_KEYS); for(int i=0;i<args.length;i++) statement.setObject(i+1,args[i]); return statement;},key);
+        jdbc.update(connection->{var statement=connection.prepareStatement(sql,Statement.RETURN_GENERATED_KEYS); for(int i=0;i<args.length;i++) statement.setObject(i+1,args[i]); return java.util.Objects.requireNonNull(statement);},key);
         return Objects.requireNonNull(key.getKey()).longValue();
     }
     private void audit(long id,Long version,PlatformPrincipal user,String action,Object details) {
@@ -144,7 +144,7 @@ public class DocumentService {
     public Detail upload(long id,VersionInput input,MultipartFile file,PlatformPrincipal user) {
         managed(id,user);
         if(input.expiresAt()!=null && !input.expiresAt().isAfter(input.effectiveAt())) throw invalid("失效时间必须晚于生效时间");
-        if(jdbc.queryForObject("SELECT COUNT(*) FROM document_version WHERE document_id=? AND version_no=?",Integer.class,id,input.versionNo())>0) throw conflict("该制度版本号已存在");
+        if(java.util.Objects.requireNonNull(jdbc.queryForObject("SELECT COUNT(*) FROM document_version WHERE document_id=? AND version_no=?",Integer.class,id,input.versionNo()))>0) throw conflict("该制度版本号已存在");
         var content=validator.validate(file);
         String key=storage.store(content.bytes());
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization(){
@@ -173,7 +173,7 @@ public class DocumentService {
         if(!"READY".equals(v.get("processing_status"))) throw conflict("版本尚未完成解析和索引，不能发布");
         var time=now();
         if(jdbc.queryForObject("SELECT COUNT(*) FROM document_version WHERE id=? AND effective_at<=? AND (expires_at IS NULL OR expires_at>?)",Integer.class,versionId,time,time)==0) throw conflict("版本尚未生效或已过期");
-        if(jdbc.queryForObject("SELECT COUNT(*) FROM document_chunk WHERE document_version_id=?",Integer.class,versionId)==0 || jdbc.queryForObject("SELECT COUNT(*) FROM document_chunk WHERE document_version_id=? AND (index_status<>'INDEXED' OR vector_key IS NULL OR TRIM(vector_key)='' OR embedding_model IS NULL OR TRIM(embedding_model)='' OR TRIM(text_content)='')",Integer.class,versionId)>0) throw conflict("文本块或检索索引尚未就绪，不能发布");
+        if(jdbc.queryForObject("SELECT COUNT(*) FROM document_chunk WHERE document_version_id=?",Integer.class,versionId)==0 || java.util.Objects.requireNonNull(jdbc.queryForObject("SELECT COUNT(*) FROM document_chunk WHERE document_version_id=? AND (index_status<>'INDEXED' OR vector_key IS NULL OR TRIM(vector_key)='' OR embedding_model IS NULL OR TRIM(embedding_model)='' OR TRIM(text_content)='')",Integer.class,versionId))>0) throw conflict("文本块或检索索引尚未就绪，不能发布");
         if(doc.currentVersionId()!=null) {
             jdbc.update("UPDATE document_version SET publication_status='RETIRED' WHERE id=?",doc.currentVersionId());
             jdbc.update("UPDATE document_chunk SET index_status='INACTIVE' WHERE document_version_id=?",doc.currentVersionId());

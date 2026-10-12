@@ -31,6 +31,15 @@
 
 ## 变更记录
 
+### 2026-10-12 修复 Java 空值与类型诊断，补充阶段十笔记
+
+- 类型：修复、验收、文档
+- 状态：已完成可重现代码诊断修复；IDE 实时面板待刷新确认
+- 背景与目的：用户反馈 77 个问题；工具恢复后，以 Java 扩展 Eclipse 编译器重现主代码/测试共 80 个警告，含额外序列化提示，未直接读取 IDE 列表逐项匹配。
+- 实际改动：数据库查询、Spring 非空参数与回调添加边界检查；调整方法引用及测试集合元素转换，移除未使用导入/变量并补齐异常 serialVersionUID。Mockito 占位符仅在两个相关测试方法局部豁免并注明原因，保留项目空值分析。新增 scripts/verify-java-diagnostics.py，采用 Surefire 实际依赖，警告也判失败；补充阶段十验收记录与 My_Learning/stage10_note.md，解释自动拆箱、框架契约、泛型擦除与复查方式。
+- 验证：68 个 Java 文件 Eclipse 检查 0 诊断、退出码 0；隔离 MySQL V1–V10 迁移，Maven verify BUILD SUCCESS，70 个测试无失败/错误/跳过；前端构建和 git diff --check 通过。证据 .cache/java-diagnostics/compiler.log、backend-reports/ 与 .cache/diagnostics-backend-verification.log。缺少 PowerShell 7，原一键脚本在 5.1 下被原生命令处理打断，使用临时兼容脚本完成数据库/Maven 回归；本次未重跑浏览器。
+- 遗留事项：IDE 刷新后数量需用户侧确认；既有前端大分块提示、真实 MQ/Redis 与模型质量验收待完成。未操作真实业务库。
+
 ### 2026-10-12 实现阶段 10 事务 outbox、异步任务与可选解析缓存
 
 - 类型：功能、架构、权限、数据库、依赖、运维、学习笔记、验收

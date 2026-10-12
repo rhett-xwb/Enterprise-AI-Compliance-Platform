@@ -144,3 +144,25 @@ Java 类比：这里是显式 cache-aside：Service 先授权，再读缓存，�
 下一阶段准备可运行中间件环境，执行真实文件异步 OCR/索引、重复消息、broker 重启、消费者退出、Redis 测量及权限失效，再串起员工预审与人工审批的完整演示。集中告警、任务归档、Rabbit/Redis 高可用和生产 TLS 也需要部署设计。
 
 **后续怎么用**：阶段十一必须读取本阶段的待验证项，补足证据后更新新阶段资料；保留这份笔记的当时边界，避免把“已写代码”误记成“已生产验证”。
+
+## 10 2026年10月12日补充：为什么编译成功，IDE 仍提示空值问题
+
+本次进展：修复 Java 主代码和测试中的空值与类型警告，新增[复查脚本](../scripts/verify-java-diagnostics.py)。先重现静态检查，再修复契约，最后执行隔离数据库回归，确认修改没有影响业务行为。
+
+生活类比：资料窗口通常会给你一张单据，但通用规则允许“没有单据”。直接读取单据编号，就可能出错。Java 的 Integer 像可有可无的单据，int 像必须填写的编号；自动拆箱会执行类似 Integer.intValue() 的操作，null 无法转换。
+
+项目例子：`AsyncJobs.active()` 用 `jdbc.queryForObject(..., Integer.class, ...)` 读取 COUNT。COUNT 应有结果，但 JdbcTemplate 的通用声明允许返回 null；`Objects.requireNonNull(...)` 显式检查这一边界后再比较数量。异常结果不会被默认成 0，避免意外允许重复工作。阅读入口：[AsyncJobs.java](../backend/src/main/java/com/enterprise/compliance/async/AsyncJobs.java)、[ParsingStore.java](../backend/src/main/java/com/enterprise/compliance/document/ParsingStore.java)。
+
+| 概念 | Java 后端例子 | 本次处理 |
+| --- | --- | --- |
+| 静态空值分析 | 调用 Spring 非空 API | 明确参数和回调返回值非空 |
+| 自动拆箱 | Integer/Long 转 int/long | 在查询边界检查结果 |
+| 泛型擦除 | Object 强转 List<Chunk> | 确认 List 后逐个用 Chunk.class.cast 校验 |
+| 方法引用 | Chunk::key 传给 Function | 用 lambda 表达读取；排序明确 Hit 参数类型 |
+| Mockito 占位符 | eq、any 返回 null 供 mock 捕获 | 仅对应测试方法局部豁免并注明原因 |
+
+**有什么用**：Maven 编译检查语法和类型，IDE 还会分析框架非空声明。两者一起检查，可以提前发现 NullPointerException 的入口；无需关闭整个项目的空值检查。
+
+**后续怎么用**：先运行 Maven 测试生成 Surefire 报告，再执行 `python scripts/verify-java-diagnostics.py`。脚本从报告获取实际依赖，使用已安装 Java 扩展的 Eclipse 编译器；其他路径可以传 `--ecj`。阶段十一新增代码继续执行这项检查；先判断空值是否业务允许，不要把所有 null 换成默认值或全局屏蔽。
+
+实际结果以[阶段十验收记录补充](../docs/阶段10验收记录.md)为准：68 个 Java 文件静态检查无诊断，隔离 MySQL 下 70 个后端测试通过，前端构建通过。本次未重跑浏览器，真实 MQ/Redis、性能和生成模型验收仍未完成；IDE 实时数量尚未直接读取。历史笔记保留原语境。

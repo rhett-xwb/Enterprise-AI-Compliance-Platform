@@ -28,7 +28,7 @@ public class TravelController {
     @DeleteMapping("/{id}/attachments/{attachmentId}") public ApiResponse<?> remove(@AuthenticationPrincipal PlatformPrincipal user,@PathVariable long id,@PathVariable long attachmentId,@RequestParam @Positive int contentVersion) { return ApiResponse.ok(store.removeAttachment(user,id,attachmentId,contentVersion)); }
     @GetMapping("/{id}/attachments/{attachmentId}") public ResponseEntity<byte[]> file(@AuthenticationPrincipal PlatformPrincipal user,@PathVariable long id,@PathVariable long attachmentId) {
         var d=store.download(user,id,attachmentId);
-        return ResponseEntity.ok().contentType(MediaType.parseMediaType(d.attachment().contentType())).header("X-Content-Type-Options","nosniff")
+        return ResponseEntity.ok().contentType(MediaType.parseMediaType(java.util.Objects.requireNonNull(d.attachment().contentType()))).header("X-Content-Type-Options","nosniff")
             .header("Cache-Control","no-store").header("Content-Disposition",ContentDisposition.attachment().filename(d.attachment().filename(),java.nio.charset.StandardCharsets.UTF_8).build().toString()).body(d.bytes());
     }
     @PostMapping("/{id}/reviews") public ApiResponse<?> review(@AuthenticationPrincipal PlatformPrincipal user,@PathVariable long id,@Valid @RequestBody Version input) { return ApiResponse.ok(review.review(user,id,input.contentVersion())); }

@@ -73,7 +73,7 @@ class TravelIntegrationTest extends MySqlTestSupport {
         parsing.enqueue(id,v,owner,false); var p=parsing.claim();
         parsing.complete(p,new ParsingStore.Result(p.taskId(),v,p.contentSha256(),"test",List.of(new ParsingStore.Source(0,1,"第 1 页",null,"出差前提交审批申请，并核对预算与附件。","TEXT",null,List.of()))));
         var work=index.prepare(id,v,owner,false);
-        index.complete(work,json.valueToTree(Map.of("generation",work.generation(),"model",RetrievalClient.MODEL,"keys",work.chunks().stream().map(IndexStore.Chunk::key).toList())));
+        index.complete(work,json.valueToTree(Map.of("generation",work.generation(),"model",RetrievalClient.MODEL,"keys",work.chunks().stream().map(item -> item.key()).toList())));
         docs.publish(id,v,owner);
         when(client.call(eq("search"),any())).thenReturn(json.valueToTree(Map.of("model",RetrievalClient.MODEL,"hits",retrieval.keys(u).stream().map(k->Map.of("key",k,"score",0.9)).toList())));
         when(model.generate(anyString(),anyList())).thenReturn(new QuestionModel.Result("ANSWERED","请核对预算与附件。[1]",List.of(1)));
@@ -114,10 +114,10 @@ class TravelIntegrationTest extends MySqlTestSupport {
         assertThrows(RuntimeException.class,()->store.download(other,d.id(),a.id())); assertThrows(RuntimeException.class,()->store.removeAttachment(other,d.id(),a.id(),2));
         var auth=authentication(new UsernamePasswordAuthenticationToken(u,null,List.of(new SimpleGrantedAuthority("approval:submit"))));
         mvc.perform(get("/api/travel-requests")).andExpect(status().isUnauthorized());
-        mvc.perform(post("/api/travel-requests").with(auth).contentType("application/json").content("{\"amount\":-1}")).andExpect(status().isBadRequest());
-        mvc.perform(get("/api/travel-requests?size=51").with(auth)).andExpect(status().isBadRequest());
-        mvc.perform(put("/api/travel-requests/"+d.id()).with(auth).contentType("application/json").content("{\"contentVersion\":1,\"form\":{}}")).andExpect(status().isConflict());
-        mvc.perform(get("/api/travel-requests").with(authentication(new UsernamePasswordAuthenticationToken(u,null,List.of())))).andExpect(status().isForbidden());
+        mvc.perform(post("/api/travel-requests").with(java.util.Objects.requireNonNull(auth)).contentType("application/json").content("{\"amount\":-1}")).andExpect(status().isBadRequest());
+        mvc.perform(get("/api/travel-requests?size=51").with(java.util.Objects.requireNonNull(auth))).andExpect(status().isBadRequest());
+        mvc.perform(put("/api/travel-requests/"+d.id()).with(java.util.Objects.requireNonNull(auth)).contentType("application/json").content("{\"contentVersion\":1,\"form\":{}}")).andExpect(status().isConflict());
+        mvc.perform(get("/api/travel-requests").with(java.util.Objects.requireNonNull(authentication(new UsernamePasswordAuthenticationToken(u,null,List.of()))))).andExpect(status().isForbidden());
         assertThrows(RuntimeException.class,()->store.attach(u,d.id(),2,new MockMultipartFile("file","bad.exe","text/plain","x".getBytes())));
     }
     @Test void authorizedPolicyAdviceIsCitedAndPermissionChangeHidesIt() {

@@ -3,7 +3,6 @@ package com.enterprise.compliance.document;
 import com.enterprise.compliance.auth.PlatformPrincipal;
 import com.enterprise.compliance.common.BusinessException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import java.sql.*;
 import java.time.*;
 import java.util.*;
 import org.springframework.beans.factory.annotation.Value;
@@ -51,7 +50,7 @@ public class ParsingStore {
         if(!"DRAFT".equals(jdbc.queryForObject("SELECT publication_status FROM document_version WHERE id=?",String.class,version)))
             throw conflict("只有草稿版本可以解析");
         if(existing!=null && existing.attempts()>=5) throw conflict("已达到五次解析尝试上限，请上传修正版");
-        if(jdbc.queryForObject("SELECT COUNT(*) FROM document_processing_task WHERE task_type='PARSE' AND status IN ('PENDING','PROCESSING')",Integer.class)>=100)
+        if(java.util.Objects.requireNonNull(jdbc.queryForObject("SELECT COUNT(*) FROM document_processing_task WHERE task_type='PARSE' AND status IN ('PENDING','PROCESSING')",Integer.class))>=100)
             throw conflict("解析队列已满，请稍后重试");
         if(existing==null) jdbc.update("INSERT INTO document_processing_task(document_version_id,task_key,task_type) VALUES(?,?,'PARSE')",version,"parse:"+version);
         else jdbc.update("UPDATE document_processing_task SET status='PENDING',error_code=NULL,run_token=NULL,lease_until=NULL,updated_at=? WHERE id=?",now(),existing.id());
@@ -90,7 +89,7 @@ public class ParsingStore {
         var expired=jdbc.queryForList("SELECT id,document_version_id FROM document_processing_task WHERE task_type='PARSE' AND status='PROCESSING' AND lease_until<?",now());
         for(var row:expired) {
             long version=((Number)row.get("document_version_id")).longValue();
-            long doc=jdbc.queryForObject("SELECT document_id FROM document_version WHERE id=?",Long.class,version);
+            long doc=java.util.Objects.requireNonNull(jdbc.queryForObject("SELECT document_id FROM document_version WHERE id=?",Long.class,version));
             jdbc.queryForList("SELECT id FROM document WHERE id=? FOR UPDATE",doc);
             if(jdbc.update("UPDATE document_processing_task SET status='FAILED',error_code='WORKER_TIMEOUT',run_token=NULL,lease_until=NULL,updated_at=? WHERE id=? AND status='PROCESSING' AND lease_until<?",now(),row.get("id"),now())==1)
                 jdbc.update("UPDATE document_version SET processing_status='FAILED' WHERE id=?",version);
@@ -100,7 +99,7 @@ public class ParsingStore {
             : jdbc.queryForList("SELECT document_version_id FROM document_processing_task WHERE task_type='PARSE' AND status='PENDING' AND id=?",Long.class,requestedTaskId);
         if(ids.isEmpty()) return null;
         long version=ids.getFirst();
-        long doc=jdbc.queryForObject("SELECT document_id FROM document_version WHERE id=?",Long.class,version);
+        long doc=java.util.Objects.requireNonNull(jdbc.queryForObject("SELECT document_id FROM document_version WHERE id=?",Long.class,version));
         var document=jdbc.queryForMap("SELECT * FROM document WHERE id=? FOR UPDATE",doc);
         var tasks=jdbc.queryForList("SELECT * FROM document_processing_task WHERE document_version_id=? AND task_type='PARSE' FOR UPDATE",version);
         var task=tasks.getFirst();

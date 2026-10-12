@@ -32,7 +32,7 @@ public class WorkflowStore {
     private <T> T decode(String value,Class<T> type) { try { return json.readValue(value,type); } catch(Exception e) { throw new IllegalStateException(e); } }
     private long insert(String sql,Object... values) {
         var key=new GeneratedKeyHolder();
-        jdbc.update(c->{var s=c.prepareStatement(sql,Statement.RETURN_GENERATED_KEYS); for(int i=0;i<values.length;i++) s.setObject(i+1,values[i]); return s;},key);
+        jdbc.update(c->{var s=c.prepareStatement(sql,Statement.RETURN_GENERATED_KEYS); for(int i=0;i<values.length;i++) s.setObject(i+1,values[i]); return java.util.Objects.requireNonNull(s);},key);
         return Objects.requireNonNull(key.getKey()).longValue();
     }
     private boolean eligible(long id) {
@@ -60,7 +60,7 @@ public class WorkflowStore {
             for(Node n:r.nodes()) if(!eligible(n.assigneeId())) throw conflict("审批人不存在、已停用或缺少审批权限");
             next=r.maximum();
         }
-        int version=jdbc.queryForObject("SELECT COALESCE(MAX(version_no),0)+1 FROM workflow_definition WHERE code='TRAVEL'",Integer.class);
+        int version=java.util.Objects.requireNonNull(jdbc.queryForObject("SELECT COALESCE(MAX(version_no),0)+1 FROM workflow_definition WHERE code='TRAVEL'",Integer.class));
         long id=insert("INSERT INTO workflow_definition(code,version_no,name,config_json,published,creator_id) VALUES('TRAVEL',?,?,?,TRUE,?)",version,config.name(),encode(config),user.id());
         jdbc.update("UPDATE workflow_publication SET active_definition_id=? WHERE code='TRAVEL'",id);
         return Map.of("id",id,"version",version);

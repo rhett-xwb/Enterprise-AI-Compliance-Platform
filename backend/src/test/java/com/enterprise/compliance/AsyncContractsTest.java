@@ -13,9 +13,10 @@ import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.data.redis.core.*;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
-import static org.mockito.ArgumentMatchers.*;
 
 class AsyncContractsTest {
+    // Mockito matchers return null placeholders consumed by mock interception.
+    @SuppressWarnings({"null", "unchecked"})
     @Test void redisUsesNamespacedVersionHashTtlAndFallsBackOnFailure() throws Exception {
         var redis=mock(StringRedisTemplate.class); ValueOperations<String,String> values=mock(ValueOperations.class); when(redis.opsForValue()).thenReturn(values);
         var json=new ObjectMapper(); var cache=new SourceCache(true,"isolated",redis,json);
@@ -25,6 +26,8 @@ class AsyncContractsTest {
         when(values.get(anyString())).thenThrow(new RuntimeException("down")); assertNull(cache.get(12,"abc")); assertEquals(1L,cache.metrics().get("errors"));
         var disabled=new SourceCache(false,"isolated",redis,json); clearInvocations(redis); assertNull(disabled.get(12,"abc")); disabled.put(12,"abc",sources); verifyNoInteractions(redis);
     }
+    // Mockito matchers return null placeholders; runtime null checks would break stubbing.
+    @SuppressWarnings("null")
     @Test void publisherMarksOutboxSentOnlyAfterPositiveConfirmAndNoReturn() {
         var jobs=mock(AsyncJobs.class); var processor=mock(AsyncProcessor.class); var template=mock(RabbitTemplate.class);
         var message=new AsyncJobs.Message(1,UUID.randomUUID().toString()); when(jobs.dispatchable()).thenReturn(List.of(message));

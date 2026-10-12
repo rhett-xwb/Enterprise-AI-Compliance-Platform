@@ -54,7 +54,7 @@ class DocumentIntegrationTest extends MySqlTestSupport {
     private String bearer(Account a) { return "Bearer "+a.token(); }
     @Test void uploadFormatsValidateContentAndHideStorage() throws Exception {
         var owner=account("LEGAL",null);
-        var response=mvc.perform(multipart("/api/documents").file(metadata(new DocumentService.CreateInput(new DocumentService.Metadata("测试制度",List.of("EMPLOYEE"),List.of()),input("v1")))).file(file("../../制度.pdf",PDF)).header("Authorization",bearer(owner)))
+        var response=mvc.perform(multipart("/api/documents").file(java.util.Objects.requireNonNull(metadata(new DocumentService.CreateInput(new DocumentService.Metadata("测试制度",List.of("EMPLOYEE"),List.of()),input("v1"))))).file(java.util.Objects.requireNonNull(file("../../制度.pdf",PDF))).header("Authorization",bearer(owner)))
             .andExpect(status().isCreated()).andExpect(jsonPath("$.data.versions[0].originalFilename").value("制度.pdf")).andExpect(jsonPath("$.data.versions[0].processingStatus").value("PENDING"))
             .andExpect(jsonPath("$.data.versions[0].storageKey").doesNotExist()).andReturn().getResponse().getContentAsString();
         long id=json.readTree(response).path("data").path("document").path("id").asLong();
@@ -66,9 +66,9 @@ class DocumentIntegrationTest extends MySqlTestSupport {
             zip.putNextEntry(new ZipEntry("word/document.xml")); zip.write("<w:document xmlns:w='http://schemas.openxmlformats.org/wordprocessingml/2006/main'><w:body/></w:document>".getBytes()); zip.closeEntry();
         }
         for(var sample:List.of(file("制度.png",image.toByteArray()),file("制度.jpg",jpeg.toByteArray()),file("制度.docx",zipBytes.toByteArray())))
-            mvc.perform(multipart("/api/documents/{id}/versions",id).file(metadata(input("v"+UUID.randomUUID().toString().substring(0,8)))).file(sample).header("Authorization",bearer(owner))).andExpect(status().isCreated());
+            mvc.perform(multipart("/api/documents/{id}/versions",id).file(java.util.Objects.requireNonNull(metadata(input("v"+UUID.randomUUID().toString().substring(0,8))))).file(java.util.Objects.requireNonNull(sample)).header("Authorization",bearer(owner))).andExpect(status().isCreated());
         for(var sample:List.of(file("bad.pdf","not-pdf".getBytes()),file("bad.exe",PDF),file("bad.jpg",image.toByteArray()),file("empty.pdf",new byte[0]),file("large.pdf",new byte[10*1024*1024+1]),file("bad.docx",PDF)))
-            mvc.perform(multipart("/api/documents/{id}/versions",id).file(metadata(input("bad"))).file(sample).header("Authorization",bearer(owner))).andExpect(status().isBadRequest());
+            mvc.perform(multipart("/api/documents/{id}/versions",id).file(java.util.Objects.requireNonNull(metadata(input("bad")))).file(java.util.Objects.requireNonNull(sample)).header("Authorization",bearer(owner))).andExpect(status().isBadRequest());
         assertEquals(4,jdbc.queryForObject("SELECT COUNT(*) FROM document_version WHERE document_id=?",Integer.class,id));
     }
     @Test void accessChecksDraftsRolesDepartmentsOwnersAndScopeChanges() throws Exception {
@@ -77,7 +77,7 @@ class DocumentIntegrationTest extends MySqlTestSupport {
         var result=create(owner,List.of("EMPLOYEE"),List.of(901L)); long id=result.document().id(), v=result.versions().getFirst().id();
         mvc.perform(get("/api/documents/{id}",id).header("Authorization",bearer(employee))).andExpect(status().isNotFound());
         mvc.perform(get("/api/documents/{id}/versions/{v}/file",id,v).header("Authorization",bearer(legal))).andExpect(status().isNotFound());
-        mvc.perform(get("/api/documents/{id}/versions/{v}/file",id,v).header("Authorization",bearer(admin))).andExpect(status().isOk()).andExpect(content().bytes(PDF)).andExpect(header().string("Cache-Control","no-store"));
+        mvc.perform(get("/api/documents/{id}/versions/{v}/file",id,v).header("Authorization",bearer(admin))).andExpect(status().isOk()).andExpect(content().bytes(java.util.Objects.requireNonNull(PDF))).andExpect(header().string("Cache-Control","no-store"));
         mvc.perform(get("/api/documents").param("management","true").header("Authorization",bearer(employee))).andExpect(status().isForbidden());
         mvc.perform(delete("/api/documents/{id}",id).header("Authorization",bearer(legal))).andExpect(status().isNotFound());
         ready(v); docs.publish(id,v,owner.principal());
@@ -112,13 +112,13 @@ class DocumentIntegrationTest extends MySqlTestSupport {
     }
     @Test void duplicatesDatesExpiredVersionsAndIntegrityAreChecked() throws Exception {
         var owner=account("LEGAL",null); var result=create(owner,List.of("LEGAL"),List.of()); long id=result.document().id(), v1=result.versions().getFirst().id();
-        mvc.perform(multipart("/api/documents/{id}/versions",id).file(metadata(input("v1"))).file(file("x.pdf",PDF)).header("Authorization",bearer(owner))).andExpect(status().isConflict());
+        mvc.perform(multipart("/api/documents/{id}/versions",id).file(java.util.Objects.requireNonNull(metadata(input("v1")))).file(java.util.Objects.requireNonNull(file("x.pdf",PDF))).header("Authorization",bearer(owner))).andExpect(status().isConflict());
         var time=LocalDateTime.now(ZoneId.of("Asia/Shanghai"));
         for(var input:List.of(new DocumentService.VersionInput("future",time.plusDays(1),null),new DocumentService.VersionInput("expired",time.minusDays(2),time.minusDays(1)))) {
             long v=docs.upload(id,input,file("x.pdf",PDF),owner.principal()).versions().getFirst().id(); ready(v);
             mvc.perform(post("/api/documents/{id}/versions/{v}/publish",id,v).header("Authorization",bearer(owner))).andExpect(status().isConflict());
         }
-        mvc.perform(multipart("/api/documents/{id}/versions",id).file(metadata(new DocumentService.VersionInput("bad_dates",time,time.minusDays(1)))).file(file("x.pdf",PDF)).header("Authorization",bearer(owner))).andExpect(status().isBadRequest());
+        mvc.perform(multipart("/api/documents/{id}/versions",id).file(java.util.Objects.requireNonNull(metadata(new DocumentService.VersionInput("bad_dates",time,time.minusDays(1))))).file(java.util.Objects.requireNonNull(file("x.pdf",PDF))).header("Authorization",bearer(owner))).andExpect(status().isBadRequest());
         mvc.perform(get("/api/documents").param("page","0").header("Authorization",bearer(owner))).andExpect(status().isBadRequest());
         mvc.perform(post("/api/documents/{id}/versions/{v}/publish",id,v1).header("Authorization",bearer(account("EMPLOYEE",null)))).andExpect(status().isForbidden());
         assertThrows(com.enterprise.compliance.common.BusinessException.class,()->storage.read("../outside"));
@@ -129,7 +129,7 @@ class DocumentIntegrationTest extends MySqlTestSupport {
     void transactionRollbackRemovesFileAndDatabaseMetadata() {
         var owner=account("LEGAL",null);
         try {
-            String key=new org.springframework.transaction.support.TransactionTemplate(transactions).execute(status->{
+            String key=new org.springframework.transaction.support.TransactionTemplate(java.util.Objects.requireNonNull(transactions)).execute(status->{
                 var result=create(owner,List.of("LEGAL"),List.of());
                 String stored=jdbc.queryForObject("SELECT storage_key FROM document_version WHERE id=?",String.class,result.versions().getFirst().id());
                 assertArrayEquals(PDF,storage.read(stored));
@@ -158,7 +158,7 @@ class DocumentIntegrationTest extends MySqlTestSupport {
             var third=executor.submit(()->{ nextStart.await(); docs.publish(id,v3,owner.principal()); return null; });
             nextStart.countDown(); second.get(15,TimeUnit.SECONDS); third.get(15,TimeUnit.SECONDS);
             assertEquals(1,jdbc.queryForObject("SELECT COUNT(*) FROM document_version WHERE document_id=? AND publication_status='PUBLISHED'",Integer.class,id));
-            assertEquals(1,docs.detail(id,owner.principal()).versions().stream().filter(DocumentService.Version::searchable).count());
+            assertEquals(1,docs.detail(id,owner.principal()).versions().stream().filter(item -> item.searchable()).count());
         } finally {
             executor.shutdownNow();
             for(String key:jdbc.queryForList("SELECT storage_key FROM document_version WHERE document_id=?",String.class,id)) storage.remove(key);

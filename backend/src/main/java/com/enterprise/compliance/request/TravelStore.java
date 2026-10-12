@@ -46,7 +46,7 @@ public class TravelStore {
     private <T> T decode(String value,Class<T> type) { try { return json.readValue(value,type); } catch(Exception ex) { throw new IllegalStateException(ex); } }
     private long insert(String sql,Object... values) {
         var key=new GeneratedKeyHolder();
-        jdbc.update(c->{var s=c.prepareStatement(sql,Statement.RETURN_GENERATED_KEYS); for(int i=0;i<values.length;i++) s.setObject(i+1,values[i]); return s;},key);
+        jdbc.update(c->{var s=c.prepareStatement(sql,Statement.RETURN_GENERATED_KEYS); for(int i=0;i<values.length;i++) s.setObject(i+1,values[i]); return java.util.Objects.requireNonNull(s);},key);
         return Objects.requireNonNull(key.getKey()).longValue();
     }
     private Map<String,Object> owned(PlatformPrincipal user,long id,boolean lock) {

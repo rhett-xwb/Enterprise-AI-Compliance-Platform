@@ -22,7 +22,6 @@ import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.transaction.PlatformTransactionManager;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
-import static org.mockito.ArgumentMatchers.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -63,7 +62,7 @@ class AsyncIntegrationTest extends MySqlTestSupport {
         assertEquals(1,jdbc.queryForObject("SELECT COUNT(*) FROM document_parse_source WHERE document_version_id=?",Integer.class,v));
     }
     @Test void rolledBackBusinessTransactionLeavesNeitherTaskNorOutbox() {
-        var template=new TransactionTemplate(tx); template.setPropagationBehavior(org.springframework.transaction.TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+        var template=new TransactionTemplate(java.util.Objects.requireNonNull(tx)); template.setPropagationBehavior(org.springframework.transaction.TransactionDefinition.PROPAGATION_REQUIRES_NEW);
         long[] version={0};
         template.execute(s->{ var u=user("LEGAL"); var d=document(u); version[0]=d.versions().getFirst().id(); async.parse(d.document().id(),version[0],u,false); s.setRollbackOnly(); return null; });
         assertEquals(0,jdbc.queryForObject("SELECT COUNT(*) FROM document_async_job WHERE document_version_id=?",Integer.class,version[0]));
@@ -124,7 +123,7 @@ class AsyncIntegrationTest extends MySqlTestSupport {
         var u=user("LEGAL"); var d=document(u); long v=d.versions().getFirst().id(); successfulParser(); async.parse(d.document().id(),v,u,false); processor.process(message(v,"PARSE"));
         var state=async.index(d.document().id(),v,u,false); assertEquals(state.generation(),async.index(d.document().id(),v,u,true).generation());
         when(retrieval.call(eq("index"),any())).thenThrow(new RuntimeException("service down")); var old=message(v,"INDEX"); processor.process(old); due(old.id());
-        doAnswer(a->{ var body=a.<Map<String,Object>>getArgument(1); var chunks=(List<IndexStore.Chunk>)body.get("chunks"); return json.valueToTree(Map.of("generation",body.get("generation"),"model",RetrievalClient.MODEL,"keys",chunks.stream().map(IndexStore.Chunk::key).toList())); }).when(retrieval).call(eq("index"),any());
+        doAnswer(a->{ var body=a.<Map<String,Object>>getArgument(1); var chunks=((List<?>)java.util.Objects.requireNonNull(body.get("chunks"))).stream().map(IndexStore.Chunk.class::cast).toList(); return json.valueToTree(Map.of("generation",body.get("generation"),"model",RetrievalClient.MODEL,"keys",chunks.stream().map(item -> item.key()).toList())); }).when(retrieval).call(eq("index"),any());
         var retry=message(v,"INDEX"); processor.process(retry); processor.process(retry); verify(retrieval,times(2)).call(eq("index"),any());
         assertEquals("SUCCEEDED",jobStatus(old.id())); assertEquals(state.generation(),index.state(d.document().id(),v,u).generation());
         assertEquals(1,jdbc.queryForObject("SELECT COUNT(*) FROM document_chunk WHERE document_version_id=?",Integer.class,v));

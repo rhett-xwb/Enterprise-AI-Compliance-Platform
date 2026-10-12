@@ -13,6 +13,7 @@ import org.springframework.stereotype.Component;
 public class QuestionModel {
     public record Result(String status, String answer, List<Integer> citations) {}
     public static class Failure extends RuntimeException {
+        private static final long serialVersionUID = 1L;
         public final String code;
         public Failure(String code) { super(code); this.code=code; }
     }

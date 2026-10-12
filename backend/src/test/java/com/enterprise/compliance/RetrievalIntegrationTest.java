@@ -36,7 +36,7 @@ class RetrievalIntegrationTest extends MySqlTestSupport {
         return d;
     }
     private void finish(IndexStore.Work work) {
-        index.complete(work,json.valueToTree(Map.of("generation",work.generation(),"model",RetrievalClient.MODEL,"keys",work.chunks().stream().map(IndexStore.Chunk::key).toList())));
+        index.complete(work,json.valueToTree(Map.of("generation",work.generation(),"model",RetrievalClient.MODEL,"keys",work.chunks().stream().map(item -> item.key()).toList())));
     }
     @Test void indexingAndRebuildUseOneEffectiveGenerationAndBlockDrafts() {
         var owner=user("LEGAL"); var employee=user("EMPLOYEE"); var d=document(owner); long id=d.document().id(),v=d.versions().getFirst().id();
@@ -59,7 +59,7 @@ class RetrievalIntegrationTest extends MySqlTestSupport {
         docs.update(id,new DocumentService.Metadata("差旅制度",List.of("EMPLOYEE"),List.of()),owner);
         String code="rag_"+UUID.randomUUID();
         jdbc.update("INSERT INTO sys_department(code,name) VALUES(?,?)",code,"验收部门");
-        long department=jdbc.queryForObject("SELECT id FROM sys_department WHERE code=?",Long.class,code);
+        long department=java.util.Objects.requireNonNull(jdbc.queryForObject("SELECT id FROM sys_department WHERE code=?",Long.class,code));
         docs.update(id,new DocumentService.Metadata("差旅制度",List.of("EMPLOYEE"),List.of(department)),owner);
         assertTrue(retrieval.resolve(employee,scores).isEmpty());
         jdbc.update("UPDATE sys_user SET department_id=? WHERE id=?",department,employee.id()); assertEquals(1,retrieval.resolve(employee,scores).size());

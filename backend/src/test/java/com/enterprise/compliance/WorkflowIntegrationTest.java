@@ -106,8 +106,8 @@ class WorkflowIntegrationTest extends MySqlTestSupport {
         assertThrows(BusinessException.class,()->workflow.decide(a,t,new WorkflowStore.Decision(2,"APPROVE","过期")));
         var auth=authentication(new UsernamePasswordAuthenticationToken(a,null,List.of(new SimpleGrantedAuthority("approval:review"))));
         mvc.perform(get("/api/workflows/tasks")).andExpect(status().isUnauthorized());
-        mvc.perform(post("/api/workflows/tasks/"+t+"/decisions").with(auth).contentType("application/json").content("{\"lockVersion\":1,\"action\":\"APPROVE\",\"opinion\":\"\"}")).andExpect(status().isBadRequest());
-        mvc.perform(get("/api/workflows/definitions").with(auth)).andExpect(status().isForbidden());
+        mvc.perform(post("/api/workflows/tasks/"+t+"/decisions").with(java.util.Objects.requireNonNull(auth)).contentType("application/json").content("{\"lockVersion\":1,\"action\":\"APPROVE\",\"opinion\":\"\"}")).andExpect(status().isBadRequest());
+        mvc.perform(get("/api/workflows/definitions").with(java.util.Objects.requireNonNull(auth))).andExpect(status().isForbidden());
         decide(a,d.id(),"APPROVE"); assertThrows(BusinessException.class,()->workflow.decide(a,t,new WorkflowStore.Decision(1,"REJECT","重复")));
     }
     @Test void reviewerSeesAssignedSnapshotInsteadOfLaterDraft() {
@@ -123,7 +123,7 @@ class WorkflowIntegrationTest extends MySqlTestSupport {
     void submissionSeesPublicationCommittedAfterItsRepeatableReadSnapshot() {
         var a=user(true); var b=user(true); var u=user(false); workflow.publish(a,config(a,b));
         var d=draft(u,"100"); var r=review.review(u,d.id(),1).reviews().getFirst();
-        new org.springframework.transaction.support.TransactionTemplate(transactions).executeWithoutResult(status->{
+        new org.springframework.transaction.support.TransactionTemplate(java.util.Objects.requireNonNull(transactions)).executeWithoutResult(status->{
             jdbc.queryForObject("SELECT COUNT(*) FROM workflow_definition",Integer.class);
             var published=CompletableFuture.supplyAsync(()->workflow.publish(a,new WorkflowStore.Config("并发新版本",List.of(new WorkflowStore.Route(BigDecimal.ZERO,null,List.of(node(b,"新审批人"))))))).orTimeout(10,TimeUnit.SECONDS).join();
             travel.submit(u,d.id(),1,r.id());

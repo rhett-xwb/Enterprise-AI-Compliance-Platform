@@ -53,7 +53,7 @@ class QuestionIntegrationTest extends MySqlTestSupport {
         parse.complete(w,new ParsingStore.Result(w.taskId(),v,w.contentSha256(),"test",List.of(new ParsingStore.Source(0,1,"第 1 页",null,"第一条 出差前必须提交申请。","TEXT",null,List.of()))));
         var work=index.prepare(id,v,owner,false); finish(work); docs.publish(id,v,owner); return d;
     }
-    private void finish(IndexStore.Work w) { index.complete(w,json.valueToTree(Map.of("generation",w.generation(),"model",RetrievalClient.MODEL,"keys",w.chunks().stream().map(IndexStore.Chunk::key).toList()))); }
+    private void finish(IndexStore.Work w) { index.complete(w,json.valueToTree(Map.of("generation",w.generation(),"model",RetrievalClient.MODEL,"keys",w.chunks().stream().map(item -> item.key()).toList()))); }
     private void ranking(PlatformPrincipal employee) {
         var keys=retrieval.keys(employee);
         when(client.call(eq("search"),any())).thenReturn(json.valueToTree(Map.of("model",RetrievalClient.MODEL,"hits",keys.stream().map(k->Map.of("key",k,"score",0.9)).toList())));
@@ -111,22 +111,22 @@ class QuestionIntegrationTest extends MySqlTestSupport {
         var employee=user("EMPLOYEE");
         var auth=authentication(new UsernamePasswordAuthenticationToken(employee,null,List.of(new SimpleGrantedAuthority("document:read"))));
         mvc.perform(get("/api/questions")).andExpect(status().isUnauthorized());
-        mvc.perform(post("/api/questions").with(auth).contentType("application/json").content("{\"question\":\" \"}")).andExpect(status().isBadRequest());
-        mvc.perform(post("/api/questions").with(auth).contentType("application/json").content("{\"question\":\"不存在的制度\"}")).andExpect(status().isOk()).andExpect(jsonPath("$.data.status").value("INSUFFICIENT"));
-        mvc.perform(get("/api/questions?size=51").with(auth)).andExpect(status().isBadRequest());
-        mvc.perform(get("/api/questions/999999").with(auth)).andExpect(status().isNotFound());
-        mvc.perform(post("/api/questions").with(authentication(new UsernamePasswordAuthenticationToken(employee,null,List.of()))).contentType("application/json").content("{\"question\":\"问题\"}")).andExpect(status().isForbidden());
+        mvc.perform(post("/api/questions").with(java.util.Objects.requireNonNull(auth)).contentType("application/json").content("{\"question\":\" \"}")).andExpect(status().isBadRequest());
+        mvc.perform(post("/api/questions").with(java.util.Objects.requireNonNull(auth)).contentType("application/json").content("{\"question\":\"不存在的制度\"}")).andExpect(status().isOk()).andExpect(jsonPath("$.data.status").value("INSUFFICIENT"));
+        mvc.perform(get("/api/questions?size=51").with(java.util.Objects.requireNonNull(auth))).andExpect(status().isBadRequest());
+        mvc.perform(get("/api/questions/999999").with(java.util.Objects.requireNonNull(auth))).andExpect(status().isNotFound());
+        mvc.perform(post("/api/questions").with(java.util.Objects.requireNonNull(authentication(new UsernamePasswordAuthenticationToken(employee,null,List.of())))).contentType("application/json").content("{\"question\":\"问题\"}")).andExpect(status().isForbidden());
     }
     @Test void conflictPersistsBothSourcesAndUncitedInputStillControlsHistoryAccess() {
         var owner=user("LEGAL"); var employee=user("EMPLOYEE");
-        document(owner); var second=document(owner); ranking(employee);
+        document(owner); document(owner); ranking(employee);
         when(model.generate(anyString(),anyList())).thenReturn(new QuestionModel.Result("CONFLICT","两条依据需要法务核对。[1][2]",List.of(1,2)));
         var conflict=ask(employee); assertEquals("CONFLICT",conflict.status()); assertEquals(2,conflict.citations().size());
         ranking(employee); var single=ask(employee); assertEquals(1,single.citations().size());
         var inputs=json.convertValue(jdbc.queryForObject("SELECT evidence_json FROM policy_question WHERE id=?",String.class,single.id()),String.class);
         assertTrue(inputs.contains("第一条"));
         long citedDocument=single.citations().getFirst().source().documentId();
-        long uncitedDocument=jdbc.queryForObject("SELECT id FROM document WHERE owner_id=? AND id<>? AND deleted_at IS NULL",Long.class,owner.id(),citedDocument);
+        long uncitedDocument=java.util.Objects.requireNonNull(jdbc.queryForObject("SELECT id FROM document WHERE owner_id=? AND id<>? AND deleted_at IS NULL",Long.class,owner.id(),citedDocument));
         docs.update(uncitedDocument,new DocumentService.Metadata("差旅制度",List.of("LEGAL"),List.of()),owner);
         assertEquals("RESTRICTED",store.detail(employee,single.id()).status());
     }

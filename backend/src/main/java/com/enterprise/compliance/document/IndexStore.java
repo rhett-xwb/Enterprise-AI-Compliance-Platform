@@ -32,7 +32,7 @@ public class IndexStore {
         var rows=jdbc.query("SELECT * FROM document_index_run WHERE document_version_id=?",(rs,n)->new State(rs.getString("status"),rs.getInt("attempts"),rs.getString("error_code"),rs.getString("generation"),rs.getString("embedding_model")),version);
         if(rows.isEmpty()) return null;
         var state=rows.getFirst();
-        if("PROCESSING".equals(state.status()) && jdbc.queryForObject("SELECT COUNT(*) FROM document_index_run WHERE document_version_id=? AND lease_until<? AND NOT EXISTS (SELECT 1 FROM document_async_job WHERE document_version_id=? AND task_type='INDEX' AND status IN ('PENDING','PROCESSING'))",Integer.class,version,now(),version)>0) {
+        if("PROCESSING".equals(state.status()) && java.util.Objects.requireNonNull(jdbc.queryForObject("SELECT COUNT(*) FROM document_index_run WHERE document_version_id=? AND lease_until<? AND NOT EXISTS (SELECT 1 FROM document_async_job WHERE document_version_id=? AND task_type='INDEX' AND status IN ('PENDING','PROCESSING'))",Integer.class,version,now(),version))>0) {
             jdbc.update("UPDATE document_index_run SET status='FAILED',error_code='INDEX_TIMEOUT',lease_until=NULL,updated_at=? WHERE document_version_id=?",now(),version);
             return new State("FAILED",state.attempts(),"INDEX_TIMEOUT",state.generation(),state.embeddingModel());
         }
@@ -66,7 +66,7 @@ public class IndexStore {
         var doc=jdbc.queryForMap("SELECT deleted_at FROM document WHERE id=? FOR UPDATE",work.documentId());
         var state=jdbc.queryForMap("SELECT * FROM document_index_run WHERE document_version_id=? FOR UPDATE",work.documentVersionId());
         if(!"PROCESSING".equals(state.get("status")) || !work.generation().equals(state.get("generation"))) return;
-        if(jdbc.queryForObject("SELECT COUNT(*) FROM document_index_run WHERE document_version_id=? AND lease_until<?",Integer.class,work.documentVersionId(),now())>0) { fail(work,"INDEX_TIMEOUT"); return; }
+        if(java.util.Objects.requireNonNull(jdbc.queryForObject("SELECT COUNT(*) FROM document_index_run WHERE document_version_id=? AND lease_until<?",Integer.class,work.documentVersionId(),now()))>0) { fail(work,"INDEX_TIMEOUT"); return; }
         if(doc.get("deleted_at")!=null || "RETIRED".equals(jdbc.queryForObject("SELECT publication_status FROM document_version WHERE id=?",String.class,work.documentVersionId()))) { fail(work,"DOCUMENT_INACTIVE"); return; }
         jdbc.update("DELETE FROM document_chunk WHERE document_version_id=?",work.documentVersionId());
         for(int i=0;i<work.slices().size();i++) {

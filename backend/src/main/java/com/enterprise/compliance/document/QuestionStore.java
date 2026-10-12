@@ -28,7 +28,7 @@ public class QuestionStore {
         try {
             var key=new GeneratedKeyHolder();
             var values=new Object[]{user.id(),question,status,answer,json.writeValueAsString(evidence),json.writeValueAsString(ids),model,RetrievalClient.MODEL,elapsed,error};
-            jdbc.update(c->{var s=c.prepareStatement("INSERT INTO policy_question(user_id,question,status,answer,evidence_json,citation_ids_json,model,embedding_model,elapsed_ms,error_code) VALUES(?,?,?,?,?,?,?,?,?,?)",Statement.RETURN_GENERATED_KEYS); for(int i=0;i<values.length;i++) s.setObject(i+1,values[i]); return s;},key);
+            jdbc.update(c->{var s=c.prepareStatement("INSERT INTO policy_question(user_id,question,status,answer,evidence_json,citation_ids_json,model,embedding_model,elapsed_ms,error_code) VALUES(?,?,?,?,?,?,?,?,?,?)",Statement.RETURN_GENERATED_KEYS); for(int i=0;i<values.length;i++) s.setObject(i+1,values[i]); return java.util.Objects.requireNonNull(s);},key);
             return Objects.requireNonNull(key.getKey()).longValue();
         } catch(com.fasterxml.jackson.core.JsonProcessingException ex) { throw new IllegalStateException("Cannot store question",ex); }
     }

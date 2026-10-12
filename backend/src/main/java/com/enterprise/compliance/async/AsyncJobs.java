@@ -26,7 +26,7 @@ public class AsyncJobs {
         } catch(com.fasterxml.jackson.core.JsonProcessingException ex) { throw new IllegalArgumentException("Invalid job payload"); }
     }
     public boolean active(long version,String type) {
-        return jdbc.queryForObject("SELECT COUNT(*) FROM document_async_job WHERE document_version_id=? AND task_type=? AND status IN ('PENDING','PROCESSING')",Integer.class,version,type)>0;
+        return java.util.Objects.requireNonNull(jdbc.queryForObject("SELECT COUNT(*) FROM document_async_job WHERE document_version_id=? AND task_type=? AND status IN ('PENDING','PROCESSING')",Integer.class,version,type))>0;
     }
     public Long failedIndex(long version) {
         var ids=jdbc.queryForList("SELECT j.id FROM document_async_job j JOIN document_index_run r ON r.document_version_id=j.document_version_id AND r.generation=JSON_UNQUOTE(JSON_EXTRACT(j.payload_json,'$.generation')) WHERE j.document_version_id=? AND j.task_type='INDEX' AND j.status='FAILED' ORDER BY j.id DESC LIMIT 1",Long.class,version);
@@ -52,7 +52,7 @@ public class AsyncJobs {
         if(ids.isEmpty()) return null;
         var doc=jdbc.queryForMap("SELECT deleted_at FROM document WHERE id=? FOR UPDATE",ids.getFirst());
         var job=jdbc.queryForMap("SELECT * FROM document_async_job WHERE id=? FOR UPDATE",message.id());
-        if(!"PENDING".equals(job.get("status")) || !message.token().equals(job.get("message_token")) || jdbc.queryForObject("SELECT next_attempt_at>? FROM document_async_job WHERE id=?",Boolean.class,now(),message.id())) return null;
+        if(!"PENDING".equals(job.get("status")) || !message.token().equals(job.get("message_token")) || java.util.Objects.requireNonNull(jdbc.queryForObject("SELECT next_attempt_at>? FROM document_async_job WHERE id=?",Boolean.class,now(),message.id()))) return null;
         long version=((Number)job.get("document_version_id")).longValue();
         String type=(String)job.get("task_type");
         if(type.equals("INDEX") && !indexCurrent(message.id(),version)) {
@@ -65,7 +65,7 @@ public class AsyncJobs {
             jdbc.update("UPDATE document_async_job SET status='SUCCEEDED',error_code=NULL,updated_at=? WHERE id=?",now(),message.id()); return null;
         }
         int attempts=((Number)job.get("attempts")).intValue();
-        if(type.equals("PARSE")) attempts=Math.max(attempts,jdbc.queryForObject("SELECT attempts FROM document_processing_task WHERE document_version_id=? AND task_type='PARSE'",Integer.class,version));
+        if(type.equals("PARSE")) attempts=Math.max(attempts,java.util.Objects.requireNonNull(jdbc.queryForObject("SELECT attempts FROM document_processing_task WHERE document_version_id=? AND task_type='PARSE'",Integer.class,version)));
         if(attempts>=5) jdbc.update("UPDATE document_async_job SET attempts=5 WHERE id=?",message.id());
         if(attempts>=5) { terminal(message.id(),version,type,"ATTEMPT_LIMIT"); return null; }
         String run=token();
@@ -80,10 +80,10 @@ public class AsyncJobs {
     }
     private boolean succeeded(long version,String type) {
         String sql=type.equals("PARSE") ? "SELECT COUNT(*) FROM document_processing_task WHERE document_version_id=? AND task_type='PARSE' AND status='SUCCEEDED'" : "SELECT COUNT(*) FROM document_index_run WHERE document_version_id=? AND status='SUCCEEDED'";
-        return jdbc.queryForObject(sql,Integer.class,version)>0;
+        return java.util.Objects.requireNonNull(jdbc.queryForObject(sql,Integer.class,version))>0;
     }
     private boolean indexCurrent(long id,long version) {
-        return jdbc.queryForObject("SELECT COUNT(*) FROM document_index_run r JOIN document_async_job j ON j.id=? WHERE r.document_version_id=? AND r.generation=JSON_UNQUOTE(JSON_EXTRACT(j.payload_json,'$.generation'))",Integer.class,id,version)>0;
+        return java.util.Objects.requireNonNull(jdbc.queryForObject("SELECT COUNT(*) FROM document_index_run r JOIN document_async_job j ON j.id=? WHERE r.document_version_id=? AND r.generation=JSON_UNQUOTE(JSON_EXTRACT(j.payload_json,'$.generation'))",Integer.class,id,version))>0;
     }
     @Transactional
     public void finished(Work work,String error) {

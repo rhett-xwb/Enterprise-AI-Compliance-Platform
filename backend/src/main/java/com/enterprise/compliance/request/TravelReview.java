@@ -31,7 +31,7 @@ public class TravelReview {
             if(enabled) try {
                 evidence=search.search(new RetrievalController.Query("差旅 出差 申请 金额 费用 目的地 "+Objects.toString(d.form().destination(),""),5,0.5),user).data();
                 if(!evidence.isEmpty()) {
-                    String question="请根据制度检查差旅申请并解释可能的问题与修改建议，不作审批决定。附件仅有元数据，未解析附件内容，不得声称已审查附件。资料不足明确无法判断。申请："+d.form()+"；附件文件名："+d.attachments().stream().map(TravelStore.Attachment::filename).toList();
+                    String question="请根据制度检查差旅申请并解释可能的问题与修改建议，不作审批决定。附件仅有元数据，未解析附件内容，不得声称已审查附件。资料不足明确无法判断。申请："+d.form()+"；附件文件名："+d.attachments().stream().map(item -> item.filename()).toList();
                     var result=model.generate(question,evidence);
                     if(result.status().equals("INSUFFICIENT")) { evidence=List.of(); }
                     else { status=result.status().equals("CONFLICT")?"CONFLICT":"REVIEWED"; risk=issues.isEmpty()?"REVIEW_REQUIRED":"HIGH"; advice=result.answer(); citations=result.citations(); }

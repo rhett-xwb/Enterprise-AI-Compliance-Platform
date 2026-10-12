@@ -46,7 +46,7 @@ public class RetrievalStore {
         var values=new ArrayList<>(Arrays.asList(args(user))); values.addAll(scores.keySet());
         var hits=jdbc.query("SELECT d.id AS doc_id,d.title,v.id AS version_id,v.version_no,c.* "+VISIBLE+" AND c.vector_key IN ("+String.join(",",Collections.nCopies(scores.size(),"?"))+")",(rs,n)->new Hit(
             rs.getLong("doc_id"),rs.getLong("version_id"),rs.getLong("id"),rs.getString("title"),rs.getString("version_no"),rs.getObject("page_number",Integer.class),rs.getString("section_title"),rs.getString("source_location"),rs.getInt("source_index"),rs.getInt("start_offset"),rs.getInt("end_offset"),rs.getString("text_content"),scores.get(rs.getString("vector_key"))),values.toArray());
-        hits.sort(Comparator.comparingDouble(Hit::score).reversed()); return hits;
+        hits.sort(Comparator.comparingDouble((Hit item) -> item.score()).reversed()); return hits;
     }
     @Transactional(readOnly=true)
     public boolean stillCurrent(PlatformPrincipal user,List<Hit> evidence) {

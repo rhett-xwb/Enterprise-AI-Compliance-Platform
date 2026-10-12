@@ -18,7 +18,7 @@ public class WorkflowController {
     @GetMapping("/requests/{id}/attachments/{attachmentId}") @PreAuthorize("hasAuthority('approval:review')")
     public org.springframework.http.ResponseEntity<byte[]> download(@AuthenticationPrincipal PlatformPrincipal user,@PathVariable long id,@PathVariable long attachmentId) {
         var d=travel.reviewerDownload(user,id,attachmentId);
-        return org.springframework.http.ResponseEntity.ok().contentType(org.springframework.http.MediaType.parseMediaType(d.attachment().contentType()))
+        return org.springframework.http.ResponseEntity.ok().contentType(org.springframework.http.MediaType.parseMediaType(java.util.Objects.requireNonNull(d.attachment().contentType())))
             .header("X-Content-Type-Options","nosniff").header("Cache-Control","no-store")
             .header("Content-Disposition",org.springframework.http.ContentDisposition.attachment().filename(d.attachment().filename(),java.nio.charset.StandardCharsets.UTF_8).build().toString()).body(d.bytes());
     }

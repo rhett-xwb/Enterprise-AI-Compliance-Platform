@@ -31,7 +31,7 @@ public class SourceCache {
         try {
             var raw=json.writeValueAsString(sources);
             // Large OCR bodies stay in MySQL. Short TTL bounds memory and orphan retention.
-            if(raw.length()<=256000) redis.opsForValue().set(namespace+":sources:v1:"+version+":"+hash,raw,Duration.ofMinutes(5));
+            if(raw.length()<=256000) redis.opsForValue().set(namespace+":sources:v1:"+version+":"+hash,raw,java.util.Objects.requireNonNull(Duration.ofMinutes(5)));
         } catch(Exception ex) { errors.increment(); }
     }
     public java.util.Map<String,Object> metrics() { return java.util.Map.of("enabled",enabled,"hits",hits.sum(),"misses",misses.sum(),"errors",errors.sum()); }

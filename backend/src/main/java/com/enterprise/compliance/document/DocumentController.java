@@ -58,7 +58,7 @@ public class DocumentController {
     @PreAuthorize("hasAuthority('document:read') or hasAuthority('document:manage')")
     ResponseEntity<byte[]> download(@PathVariable @Positive long id,@PathVariable @Positive long versionId,@AuthenticationPrincipal PlatformPrincipal user) {
         var download=service.download(id,versionId,user);
-        return ResponseEntity.ok().contentType(MediaType.parseMediaType(download.type()))
+        return ResponseEntity.ok().contentType(MediaType.parseMediaType(java.util.Objects.requireNonNull(download.type())))
             .header(HttpHeaders.CONTENT_DISPOSITION,ContentDisposition.attachment().filename(download.filename(),StandardCharsets.UTF_8).build().toString())
             .header(HttpHeaders.CACHE_CONTROL,"no-store").header("X-Content-Type-Options","nosniff").body(download.bytes());
     }
